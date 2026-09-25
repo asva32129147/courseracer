@@ -1,68 +1,106 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#0b0d10">
   <title>Course Racer</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Roboto+Mono:wght@500;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-<header>
-  <div><h1>🏁 Course Racer</h1><p id="courseName">Course</p></div>
-  <div class="header-actions"><select id="courseSelector" aria-label="Course"></select><button id="logoutBtn" class="secondary hidden">Log out</button></div>
-</header>
-<main>
-  <section id="authCard" class="card auth">
-    <h2>Sign in</h2>
-    <p class="muted">Your progress only counts after an admin approves your evidence.</p>
-    <input id="email" type="email" autocomplete="email" placeholder="Email">
-    <input id="password" type="password" autocomplete="current-password" placeholder="Password">
-    <input id="name" type="text" autocomplete="name" placeholder="Display name (new accounts only)">
-    <div class="row"><button id="loginBtn">Sign in</button><button id="signupBtn" class="secondary">Create account</button></div>
-    <div class="or-divider"><span>or</span></div>
-    <button id="googleBtn" class="google-btn">Continue with Google</button>
-    <p id="authMsg" class="msg"></p>
-  </section>
-
-  <section id="app" class="hidden">
-    <div class="course-status card">
-      <div><b id="winnerStatus">No winner declared</b><span id="lockedBadge" class="pill hidden">Locked</span></div>
-      <span id="maxScore" class="muted"></span>
+<div class="app-shell">
+  <header class="topbar">
+    <div class="brand">
+      <div class="brand-mark">⌁</div>
+      <div>
+        <div class="brand-name">COURSE RACER</div>
+        <div class="brand-sub" id="courseName">Course</div>
+      </div>
     </div>
-
-    <div class="grid">
-      <section class="card">
-        <div class="section-head"><h2>🏆 Live leaderboard</h2><span id="connection" class="pill">Live</span></div>
-        <div id="leaderboard"></div>
-      </section>
-      <section class="card">
-        <h2>📜 Race rules</h2>
-        <ul id="rulesList" class="compact"></ul>
-        <p class="muted">Scoring is configured per course, so future courses can use different structures.</p>
-      </section>
+    <div class="header-actions">
+      <span class="live-dot"><i></i> LIVE</span>
+      <select id="courseSelector" aria-label="Course"></select>
+      <button id="logoutBtn" class="secondary hidden">Log out</button>
     </div>
+  </header>
 
-    <section class="card">
-      <div class="section-head"><h2>📚 My progress</h2><span id="myScore" class="score-badge">0 / 100</span></div>
-      <p id="raceLockedMsg" class="locked-msg hidden"></p>
-      <div id="progress"></div>
+  <main>
+    <section id="authCard" class="auth card">
+      <div class="auth-kicker">COMPETITIVE LEARNING PLATFORM</div>
+      <h1>Race through your course.</h1>
+      <p class="muted auth-copy">Track progress, verify completions, and compete on a live leaderboard. Only approved evidence earns points.</p>
+      <div class="auth-panel">
+        <label>Email<input id="email" type="email" autocomplete="email" placeholder="you@example.com"></label>
+        <label>Password<input id="password" type="password" autocomplete="current-password" placeholder="••••••••"></label>
+        <label>Display name <span>(new accounts)</span><input id="name" type="text" autocomplete="name" placeholder="Your racer name"></label>
+        <div class="row"><button id="loginBtn">Sign in</button><button id="signupBtn" class="secondary">Create account</button></div>
+        <div class="or-divider"><span>OR</span></div>
+        <button id="googleBtn" class="google-btn"><span class="google-g">G</span> Continue with Google</button>
+        <p id="authMsg" class="msg"></p>
+      </div>
+      <div class="auth-foot"><span>Firebase secured</span><span>•</span><span>Evidence-based scoring</span></div>
     </section>
 
-    <section id="adminCard" class="card hidden">
-      <div class="section-head"><h2>🛡️ Verification queue</h2><span id="pendingCount" class="pill">0 pending</span></div>
-      <p class="muted">Open the screenshot, check the edX progress, then click <b>Approve</b>. Approved claims immediately update the leaderboard.</p>
-      <div id="claims"></div>
-    </section>
+    <section id="app" class="hidden">
+      <div class="hero card">
+        <div>
+          <div class="eyebrow">CURRENT RACE</div>
+          <h1 id="heroTitle">Course</h1>
+          <p class="muted">Your approved progress is scored automatically. Speed bonuses update live.</p>
+        </div>
+        <div class="hero-score"><span>MAX SCORE</span><strong id="maxScore">100 pts</strong></div>
+      </div>
 
-    <section id="courseAdmin" class="card hidden">
-      <div class="section-head"><h2>🏁 Course controls</h2><button id="declareWinnerBtn">Declare winner</button></div>
-      <p class="muted">Declaring the winner locks this course. The current #1 on the live leaderboard becomes the winner and no further submissions or approvals can change the result.</p>
-    </section>
-  </section>
-</main>
-<footer><p>Course Racer is a private competition tool. Only approved evidence earns points. Checkpoints and race deadlines are competition rules.</p></footer>
+      <div class="race-banner card">
+        <div class="status-main"><span class="status-icon">🏁</span><div><b id="winnerStatus">No winner declared</b><small>Race status</small></div></div>
+        <span id="lockedBadge" class="pill hidden">LOCKED</span>
+      </div>
 
+      <div class="grid dashboard-grid">
+        <section class="card leaderboard-card">
+          <div class="section-head"><div><div class="eyebrow">RANKINGS</div><h2>Live leaderboard</h2></div><span id="connection" class="pill live-pill">Connected</span></div>
+          <div id="leaderboard"></div>
+        </section>
+        <section class="card rules-card">
+          <div class="eyebrow">SCORING SYSTEM</div><h2>Race rules</h2>
+          <ul id="rulesList" class="compact"></ul>
+          <div class="rule-note">Scoring is configured per course, so future races can use different structures.</div>
+        </section>
+      </div>
+
+      <section class="card progress-card">
+        <div class="section-head"><div><div class="eyebrow">YOUR RACE</div><h2>My progress</h2></div><span id="myScore" class="score-badge">0 / 100</span></div>
+        <p id="raceLockedMsg" class="locked-msg hidden"></p>
+        <div id="progress"></div>
+      </section>
+
+      <section id="adminCard" class="card admin-card hidden">
+        <div class="section-head"><div><div class="eyebrow">ADMIN</div><h2>Verification queue</h2></div><span id="pendingCount" class="pill">0 pending</span></div>
+        <p class="muted">Inspect each edX screenshot, then approve or reject the claim. Approved claims immediately update the leaderboard.</p>
+        <div id="claims"></div>
+      </section>
+
+      <section id="courseAdmin" class="card admin-card hidden">
+        <div class="section-head"><div><div class="eyebrow">ADMIN</div><h2>Course controls</h2></div><button id="declareWinnerBtn">Declare winner</button></div>
+        <p class="muted">Declaring the winner records the current #1 and locks this course. Further submissions and approvals are blocked.</p>
+      </section>
+    </section>
+  </main>
+
+  <footer><span>COURSE RACER</span><span>•</span><span>Private competition tool</span></footer>
+</div>
 <div id="lightbox" class="lightbox hidden"><button id="closeLightbox" class="close">×</button><img id="lightboxImg" alt="Evidence screenshot"></div>
+<script>
+  const observer = new MutationObserver(() => {
+    const title = document.getElementById('courseName');
+    const hero = document.getElementById('heroTitle');
+    if (title && hero) hero.textContent = title.textContent;
+  });
+  observer.observe(document.body, {subtree:true, childList:true, characterData:true});
+</script>
 <script type="module" src="app.js"></script>
 </body>
 </html>
