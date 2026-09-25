@@ -14,7 +14,7 @@
 <div class="app-shell">
   <header class="topbar">
     <div class="brand">
-      <div class="brand-mark">⌁</div>
+      <img class="brand-logo" src="course-racer-logo.png" alt="Course Racer — Level Up Your Learning logo">
       <div>
         <div class="brand-name">COURSE RACER</div>
         <div class="brand-sub" id="courseName">Course</div>
@@ -93,14 +93,6 @@
   <footer><span>COURSE RACER</span><span>•</span><span>Private competition tool</span></footer>
 </div>
 <div id="lightbox" class="lightbox hidden"><button id="closeLightbox" class="close">×</button><img id="lightboxImg" alt="Evidence screenshot"></div>
-<script>
-  const observer = new MutationObserver(() => {
-    const title = document.getElementById('courseName');
-    const hero = document.getElementById('heroTitle');
-    if (title && hero) hero.textContent = title.textContent;
-  });
-  observer.observe(document.body, {subtree:true, childList:true, characterData:true});
-</script>
 <script type="module" src="app.js"></script>
 </body>
 </html>
