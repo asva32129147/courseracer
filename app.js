@@ -30,7 +30,7 @@ const COURSES = {
 const DEFAULT_COURSE_ID = "pup01x";
 
 const firebaseConfig = {
-  apiKey: "AIzaSyAH8Lt8pnV000AHrmtJ3f-q1i71l3VYFU",
+  apiKey: "AIzaSyAH8Lt8pnV000AHrmtjI3f-q1i71l3VYFU",
   authDomain: "course-racer.firebaseapp.com",
   projectId: "course-racer",
   storageBucket: "course-racer.firebasestorage.app",
