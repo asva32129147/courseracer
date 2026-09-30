@@ -1,10 +1,12 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-app.js";
-import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js";
+import { getAuth, GoogleAuthProvider, signInWithPopup, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js";
 import { getFirestore, doc, setDoc, getDoc, collection, addDoc, query, where, onSnapshot, serverTimestamp, updateDoc, getDocs } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
 
 // =========================
 // Course Racer configuration
 // =========================
+// Add future courses by adding another object to COURSES. Each course gets its
+// own ID, modules, deadlines, and leaderboard. Claims are separated by courseId.
 const COURSES = {
   pup01x: {
     id: "pup01x",
@@ -29,6 +31,7 @@ const COURSES = {
 };
 const DEFAULT_COURSE_ID = "pup01x";
 
+// Paste the Firebase Web App config here.
 const firebaseConfig = {
   apiKey: "AIzaSyAH8Lt8pnV000AHrmtjI3f-q1i71l3VYFU",
   authDomain: "course-racer.firebaseapp.com",
@@ -38,11 +41,12 @@ const firebaseConfig = {
   appId: "1:491085898550:web:7d5c266f7dba3dec074997"
 };
 
-// Keep your existing admin UID here.
+// Paste YOUR Firebase Auth UID here after creating your admin account.
 const ADMIN_UID = "RcpTC3K2OpM5MfJDoNhOZhAx0K93";
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
+const googleProvider = new GoogleAuthProvider();
 const db = getFirestore(app);
 
 let currentCourseId = DEFAULT_COURSE_ID;
@@ -89,6 +93,15 @@ function buildCourseSelector(){
   $("courseSelector").onchange = e => selectCourse(e.target.value);
   updateCourseHeader();
 }
+
+$("googleBtn").onclick = async () => {
+  try {
+    const cred = await signInWithPopup(auth, googleProvider);
+    const ref = doc(db,"users",cred.user.uid);
+    const snap = await getDoc(ref);
+    if(!snap.exists()) await setDoc(ref,{name:cred.user.displayName||"Racer",email:cred.user.email||"",role:cred.user.uid===ADMIN_UID?"admin":"racer",createdAt:serverTimestamp()});
+  } catch(e) { $("authMsg").textContent = friendlyError(e); }
+};
 
 $("signupBtn").onclick = async () => {
   try {
@@ -195,8 +208,11 @@ async function submitUnit(key){
   const existing=await getDocs(query(collection(db,"claims"),where("uid","==",currentUser.uid),where("courseId","==",currentCourseId),where("itemKey","==",key)));
   if(existing.docs.some(d=>d.data().verified===true || d.data().verified===null)) return alert("You already have a claim for this item waiting for approval.");
   const file=await chooseImage(); if(!file)return;
-  const image=await compressImage(file);
-  await addDoc(collection(db,"claims"),{courseId:currentCourseId,uid:currentUser.uid,itemKey:key,label:allUnits().find(x=>x.key===key).label,type:"unit",evidence:image,verified:null,createdAt:serverTimestamp()});
+  try {
+    const image=await compressImage(file);
+    await addDoc(collection(db,"claims"),{courseId:currentCourseId,uid:currentUser.uid,itemKey:key,label:allUnits().find(x=>x.key===key).label,type:"unit",evidence:image,verified:null,createdAt:serverTimestamp()});
+    alert("Proof submitted. It is now waiting for admin approval.");
+  } catch(e) { console.error(e); alert("Proof submission failed: "+friendlyError(e)); }
 }
 
 async function submitFinal(mi){
@@ -204,8 +220,11 @@ async function submitFinal(mi){
   const pct=prompt("Enter the final-exercise percentage shown by edX (0–100):");
   const n=Number(pct); if(!Number.isFinite(n)||n<0||n>100)return alert("Enter a number from 0 to 100.");
   const file=await chooseImage(); if(!file)return;
-  const image=await compressImage(file);
-  await addDoc(collection(db,"claims"),{courseId:currentCourseId,uid:currentUser.uid,itemKey:`final-${mi}`,label:`${currentCourse.modules[mi].name} final exercise`,type:"final",percentage:n,points:finalPoints(n),evidence:image,verified:null,createdAt:serverTimestamp()});
+  try {
+    const image=await compressImage(file);
+    await addDoc(collection(db,"claims"),{courseId:currentCourseId,uid:currentUser.uid,itemKey:`final-${mi}`,label:`${currentCourse.modules[mi].name} final exercise`,type:"final",percentage:n,points:finalPoints(n),evidence:image,verified:null,createdAt:serverTimestamp()});
+    alert("Final exercise submitted. It is now waiting for admin approval.");
+  } catch(e) { console.error(e); alert("Proof submission failed: "+friendlyError(e)); }
 }
 
 function chooseImage(){return new Promise(resolve=>{const input=document.createElement("input");input.type="file";input.accept="image/png,image/jpeg,image/webp";input.onchange=()=>resolve(input.files?.[0]||null);input.click();});}
@@ -309,116 +328,30 @@ function renderAdminWinnerControls(rows){
 
 $("declareWinnerBtn").onclick = async () => {
   if(currentUser?.uid!==ADMIN_UID || courseState.locked) return;
-  const uid=$("declareWinnerBtn").dataset.uid;
-  const name=$("declareWinnerBtn").dataset.name;
-  const score=Number($("declareWinnerBtn").dataset.score);
-
+  const uid=$("declareWinnerBtn").dataset.uid, name=$("declareWinnerBtn").dataset.name, score=Number($("declareWinnerBtn").dataset.score);
   if(!uid) return alert("There are no racers to declare as winner.");
-
-  const message =
-    `Declare ${name} the winner of ${currentCourse.shortName} with ${score} points?\n\n` +
-    "This will lock the course and stop further submissions and approvals.";
-
-  if(!confirm(message)) return;
-
-  await setDoc(
-    doc(db,"courses",currentCourseId),
-    {
-      winnerUid:uid,
-      winnerName:name,
-      winnerScore:score,
-      declaredAt:serverTimestamp(),
-      declaredBy:currentUser.uid,
-      locked:true
-    },
-    {merge:true}
-  );
+  if(!confirm(`Declare ${name} the winner of ${currentCourse.shortName} with ${score} points?\n\nThis will lock the course and stop further submissions and approvals.`)) return;
+  await setDoc(doc(db,"courses",currentCourseId),{winnerUid:uid,winnerName:name,winnerScore:score,declaredAt:serverTimestamp(),declaredBy:currentUser.uid,locked:true},{merge:true});
 };
 
 function subscribePendingClaims(){
-  unsubClaims = onSnapshot(
-    query(
-      collection(db,"claims"),
-      where("courseId","==",currentCourseId),
-      where("verified","==",null)
-    ),
-    async snap => {
-      const arr=[];
-
-      for(const d of snap.docs){
-        const c={id:d.id,...d.data()};
-        const u=await getDoc(doc(db,"users",c.uid));
-        arr.push({...c,name:u.data()?.name||"Racer"});
-      }
-
-      arr.sort((a,b)=>timestamp(a.createdAt)-timestamp(b.createdAt));
-      $("pendingCount").textContent=`${arr.length} pending`;
-
-      if(arr.length===0){
-        $("claims").innerHTML=`<div class="empty">No pending submissions.</div>`;
-        return;
-      }
-
-      $("claims").innerHTML=arr.map(c=>{
-        const pointsDisplay =
-          c.percentage!=null
-            ? `<span class="pill">${c.percentage}% → ${c.points} pts</span>`
-            : `<span class="pill">+${currentCourse.points.unit} pts</span>`;
-
-        const lockedAttr=courseState.locked ? "disabled" : "";
-
-        return `
-          <div class="claim">
-            <div class="claim-top">
-              <div>
-                <b>${escapeHtml(c.name)}</b>
-                <div class="small">
-                  ${escapeHtml(c.label)} · submitted ${formatTimestamp(c.createdAt)}
-                </div>
-              </div>
-              ${pointsDisplay}
-            </div>
-
-            <img
-              src="${c.evidence}"
-              data-img="${c.evidence}"
-              alt="edX evidence screenshot"
-            >
-
-            <div class="claim-actions">
-              <button data-approve="${c.id}" ${lockedAttr}>Approve</button>
-              <button class="danger" data-reject="${c.id}" ${lockedAttr}>Reject</button>
-            </div>
-          </div>
-        `;
-      }).join("");
-
-      document.querySelectorAll("[data-approve]").forEach(b=>{
-        b.onclick=()=>reviewClaim(b.dataset.approve,true);
-      });
-
-      document.querySelectorAll("[data-reject]").forEach(b=>{
-        b.onclick=()=>reviewClaim(b.dataset.reject,false);
-      });
-
-      document.querySelectorAll("[data-img]").forEach(img=>{
-        img.onclick=()=>openLightbox(img.dataset.img);
-      });
-    },
-    showDbError
-  );
+  unsubClaims=onSnapshot(query(collection(db,"claims"),where("courseId","==",currentCourseId),where("verified","==",null)),async snap=>{
+    const arr=[];
+    for(const d of snap.docs){const c={id:d.id,...d.data()};const u=await getDoc(doc(db,"users",c.uid));arr.push({...c,name:u.data()?.name||"Racer"});}
+    arr.sort((a,b)=>timestamp(a.createdAt)-timestamp(b.createdAt));
+    $("pendingCount").textContent=`${arr.length} pending`;
+    $("claims").innerHTML=arr.length?arr.map(c=>`<div class="claim"><div class="claim-top"><div><b>${escapeHtml(c.name)}</b><div class="small">${escapeHtml(c.label)} · submitted ${formatTimestamp(c.createdAt)}</div></div>${c.percentage!=null?`<span class="pill">${c.percentage}% → ${c.points} pts</span>`:"<span class="pill">+${currentCourse.points.unit} pts</span>"}</div><img src="${c.evidence}" data-img="${c.evidence}" alt="edX evidence screenshot"><div class="claim-actions"><button data-approve="${c.id}" ${courseState.locked?"disabled":""}>Approve</button><button class="danger" data-reject="${c.id}" ${courseState.locked?"disabled":""}>Reject</button></div></div>`).join(""):`<div class="empty">No pending submissions.</div>`;
+    document.querySelectorAll("[data-approve]").forEach(b=>b.onclick=()=>reviewClaim(b.dataset.approve,true));
+    document.querySelectorAll("[data-reject]").forEach(b=>b.onclick=()=>reviewClaim(b.dataset.reject,false));
+    document.querySelectorAll("[data-img]").forEach(img=>img.onclick=()=>openLightbox(img.dataset.img));
+  },showDbError);
 }
-
 async function reviewClaim(id,approved){
   if(courseState.locked) return alert("This course is locked.");
   await updateDoc(doc(db,"claims",id),{verified:approved,verifiedAt:serverTimestamp(),verifiedBy:auth.currentUser.uid});
 }
 
-function cleanupListeners(){
-  [unsubClaims,unsubUsers,unsubMyClaims,unsubCourse].forEach(fn=>{if(fn)fn();});
-  unsubClaims=unsubUsers=unsubMyClaims=unsubCourse=null;
-  if(leaderboardTimer){clearInterval(leaderboardTimer);leaderboardTimer=null;}
-}
+function cleanupListeners(){[unsubClaims,unsubUsers,unsubMyClaims,unsubCourse].forEach(fn=>{if(fn)fn();});unsubClaims=unsubUsers=unsubMyClaims=unsubCourse=null;if(leaderboardTimer){clearInterval(leaderboardTimer);leaderboardTimer=null;}}
 function statusRank(v){return v===true?3:v===null?2:v===false?1:0}
 function openLightbox(src){$("lightboxImg").src=src;$("lightbox").classList.remove("hidden")}
 function closeLightbox(){$("lightbox").classList.add("hidden");$("lightboxImg").src=""}

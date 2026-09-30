@@ -1,58 +1,38 @@
 rules_version = '2';
-
 service cloud.firestore {
   match /databases/{database}/documents {
-
-    function isAdmin() {
-      return request.auth != null
-        && request.auth.uid == "RcpTC3K2OpM5MfJDoNhOZhAx0K93";
-    }
-
-    function signedIn() {
-      return request.auth != null;
-    }
-
-    function courseLocked(courseId) {
-      return get(/databases/$(database)/documents/courses/$(courseId)).data.locked == true;
-    }
+    function signedIn() { return request.auth != null; }
+    function admin() { return signedIn() && request.auth.uid == "PASTE_ADMIN_UID"; }
 
     match /users/{uid} {
       allow read: if signedIn();
-      allow create: if signedIn()
-        && request.auth.uid == uid
-        && request.resource.data.role == "racer";
-      allow update: if isAdmin()
-        || (signedIn() && request.auth.uid == uid
-          && request.resource.data.role == resource.data.role
-          && request.resource.data.email == resource.data.email);
-      allow delete: if isAdmin();
+      allow create: if signedIn() && request.auth.uid == uid
+                    && request.resource.data.role == "racer";
+      allow update: if admin() || (signedIn() && request.auth.uid == uid
+                    && request.resource.data.role == resource.data.role
+                    && request.resource.data.email == resource.data.email);
+      allow delete: if admin();
     }
 
     match /courses/{courseId} {
       allow read: if signedIn();
-      allow create, update, delete: if isAdmin();
+      allow create, update, delete: if admin();
     }
 
     match /claims/{claimId} {
-      allow read: if signedIn()
-        && (isAdmin() || resource.data.uid == request.auth.uid || resource.data.verified == true);
-
+      allow read: if signedIn() && (admin() || resource.data.uid == request.auth.uid || resource.data.verified == true);
       allow create: if signedIn()
-        && exists(/databases/$(database)/documents/courses/$(request.resource.data.courseId))
-        && !courseLocked(request.resource.data.courseId)
-        && request.resource.data.uid == request.auth.uid
-        && request.resource.data.verified == null
-        && request.resource.data.evidence is string
-        && request.resource.data.evidence.size() < 1000000;
-
-      allow update: if isAdmin()
-        && !courseLocked(resource.data.courseId)
-        && request.resource.data.uid == resource.data.uid
-        && request.resource.data.courseId == resource.data.courseId
-        && request.resource.data.itemKey == resource.data.itemKey
-        && request.resource.data.evidence == resource.data.evidence;
-
-      allow delete: if isAdmin() && !courseLocked(resource.data.courseId);
+                    && !exists(/databases/$(database)/documents/courses/$(request.resource.data.courseId)) == false
+                    && request.resource.data.uid == request.auth.uid
+                    && request.resource.data.verified == null
+                    && request.resource.data.evidence is string
+                    && request.resource.data.evidence.size() < 1000000;
+      allow update: if admin()
+                    && request.resource.data.uid == resource.data.uid
+                    && request.resource.data.courseId == resource.data.courseId
+                    && request.resource.data.itemKey == resource.data.itemKey
+                    && request.resource.data.evidence == resource.data.evidence;
+      allow delete: if admin();
     }
   }
 }
